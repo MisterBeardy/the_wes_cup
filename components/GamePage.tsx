@@ -4,9 +4,12 @@ import { Mode, Game } from '@/lib/types'
 import { TEAMS, TODAY, teamByAbbr } from '@/lib/teams'
 import TeamCard from '@/components/TeamCard'
 import ScorePanel from '@/components/ScorePanel'
+import Bracket from '@/components/Bracket'
 
 const DRANK_KEY = 'wc2026_drank_v3'
 const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
+
+type View = 'groups' | 'bracket'
 
 export default function GamePage() {
   const [mode, setMode] = useState<Mode>('auth')
@@ -15,6 +18,7 @@ export default function GamePage() {
   const [fetchedAt, setFetchedAt] = useState('')
   const [group, setGroup] = useState('ALL')
   const [search, setSearch] = useState('')
+  const [view, setView] = useState<View>('groups')
 
   // Load drank state from localStorage
   useEffect(() => {
@@ -162,104 +166,143 @@ export default function GamePage() {
       {/* Score panel */}
       <ScorePanel games={games} mode={mode} drankSet={drankSet} fetchedAt={fetchedAt || new Date().toISOString()} />
 
-      {/* Group filters */}
-      <div className="flex justify-center gap-2 px-4 pt-3 pb-1 flex-wrap">
-        {['ALL', ...GROUPS].map(g => (
+      {/* View toggle — Groups vs Bracket */}
+      <div className="flex justify-center px-4 pt-4 pb-0">
+        <div className="flex bg-black/35 border border-[#2d5a2d] rounded-full overflow-hidden">
           <button
-            key={g}
-            onClick={() => setGroup(g)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-              group === g
-                ? 'bg-yellow-400 border-yellow-400 text-black font-bold'
-                : 'border-[#2d5a2d] text-[#b8b4aa] hover:border-yellow-400/40 hover:text-white'
+            onClick={() => setView('groups')}
+            className={`px-5 py-2 text-xs font-bold uppercase tracking-widest transition-all ${
+              view === 'groups' ? 'bg-yellow-400 text-black rounded-full' : 'text-[#b8b4aa] hover:text-white'
             }`}
           >
-            {g}
+            ⚽ Groups
           </button>
-        ))}
+          <button
+            onClick={() => setView('bracket')}
+            className={`px-5 py-2 text-xs font-bold uppercase tracking-widest transition-all ${
+              view === 'bracket' ? 'bg-yellow-400 text-black rounded-full' : 'text-[#b8b4aa] hover:text-white'
+            }`}
+          >
+            🏆 Bracket
+          </button>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="flex justify-center px-4 pb-3 pt-1">
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 Search team or drink..."
-          className="bg-[#0f2a0f] border border-[#2d5a2d] text-[#f0ede6] placeholder-[#b8b4aa] rounded-full px-4 py-2 text-sm w-full max-w-xs outline-none focus:border-yellow-400 transition-colors"
+      {/* Bracket view */}
+      {view === 'bracket' && (
+        <Bracket
+          mode={mode}
+          knockoutGames={games.filter(g => g.status !== 'scheduled' && !['A','B','C','D','E','F','G','H','I','J','K','L'].some(
+            grp => TEAMS.filter(t => t.g === grp).some(t => t.abbr === g.home || t.abbr === g.away)
+          ))}
+          drankSet={drankSet}
+          onToggle={toggleDrank}
         />
-      </div>
+      )}
 
-      {/* Groups */}
-      <main className="max-w-7xl mx-auto px-4 pb-16">
-        {groupsToShow.length === 0 && (
-          <p className="text-center text-[#b8b4aa] py-12">No teams found — maybe they didn&apos;t qualify. Like Italy. 🫡</p>
-        )}
+      {/* Groups view */}
+      {view === 'groups' && (
+        <>
+          {/* Group filters */}
+          <div className="flex justify-center gap-2 px-4 pt-3 pb-1 flex-wrap">
+            {['ALL', ...GROUPS].map(g => (
+              <button
+                key={g}
+                onClick={() => setGroup(g)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  group === g
+                    ? 'bg-yellow-400 border-yellow-400 text-black font-bold'
+                    : 'border-[#2d5a2d] text-[#b8b4aa] hover:border-yellow-400/40 hover:text-white'
+                }`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
 
-        {groupsToShow.map(g => {
-          const groupTeams = filteredTeams.filter(t => t.g === g)
-          if (!groupTeams.length) return null
-          const pills = pillsByGroup.get(g) ?? []
+          {/* Search */}
+          <div className="flex justify-center px-4 pb-3 pt-1">
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="🔍 Search team or drink..."
+              className="bg-[#0f2a0f] border border-[#2d5a2d] text-[#f0ede6] placeholder-[#b8b4aa] rounded-full px-4 py-2 text-sm w-full max-w-xs outline-none focus:border-yellow-400 transition-colors"
+            />
+          </div>
 
-          return (
-            <section key={g} className="mb-8">
-              <div className="border-b border-yellow-400/20 pb-1.5 mb-2">
-                <h2 className="font-['Bebas_Neue'] text-2xl tracking-widest text-yellow-400">⚽ Group {g}</h2>
-              </div>
+          {/* Groups */}
+          <main className="max-w-7xl mx-auto px-4 pb-16">
+            {groupsToShow.length === 0 && (
+              <p className="text-center text-[#b8b4aa] py-12">No teams found — maybe they didn&apos;t qualify. Like Italy. 🫡</p>
+            )}
 
-              {/* Result pills — today only */}
-              {pills.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {pills.map(game => {
-                    const ht = teamByAbbr(game.home), at = teamByAbbr(game.away)
-                    if (!ht) return null
-                    if (game.status === 'live') {
-                      return (
-                        <span key={`${game.home}-${game.away}`} className="inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/35 rounded-md px-2 py-1 text-xs text-white">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          {ht.flag} {ht.name}
-                          <span className="font-['Bebas_Neue'] text-sm">{game.hs}–{game.as}</span>
-                          {at?.name} {at?.flag}
-                        </span>
-                      )
-                    }
-                    if (game.hs === game.as) {
-                      return (
-                        <span key={`${game.home}-${game.away}`} className="inline-flex items-center gap-1.5 bg-white/5 border border-white/12 rounded-full px-2.5 py-0.5 text-xs text-[#b8b4aa]">
-                          {ht.flag} {ht.name} <span className="font-['Bebas_Neue'] text-sm text-white">{game.hs}–{game.as}</span> {at?.name} {at?.flag} <span className="text-[10px]">DRAW</span>
-                        </span>
-                      )
-                    }
-                    const winAbbr = game.hs > game.as ? game.home : game.away
-                    const wt = teamByAbbr(winAbbr)
-                    const lt = teamByAbbr(game.hs > game.as ? game.away : game.home)
-                    const ws = Math.max(game.hs, game.as), ls = Math.min(game.hs, game.as)
-                    return (
-                      <span key={`${game.home}-${game.away}`} title={`Beat ${lt?.name}`} className="inline-flex items-center gap-1.5 bg-yellow-400/8 border border-yellow-400/25 rounded-full px-2.5 py-0.5 text-xs text-yellow-400 font-semibold">
-                        {wt?.flag} {wt?.name} <span className="font-['Bebas_Neue'] text-sm opacity-70">{ws}–{ls}</span>
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
+            {groupsToShow.map(g => {
+              const groupTeams = filteredTeams.filter(t => t.g === g)
+              if (!groupTeams.length) return null
+              const pills = pillsByGroup.get(g) ?? []
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                {groupTeams.map(team => (
-                  <TeamCard
-                    key={team.abbr}
-                    team={team}
-                    mode={mode}
-                    game={gameByTeam.get(team.abbr)}
-                    isWinner={winners.has(team.abbr)}
-                    isLive={liveSet.has(team.abbr)}
-                    hasDrank={drankSet.has(team.abbr)}
-                    onToggle={toggleDrank}
-                  />
-                ))}
-              </div>
-            </section>
-          )
-        })}
-      </main>
+              return (
+                <section key={g} className="mb-8">
+                  <div className="border-b border-yellow-400/20 pb-1.5 mb-2">
+                    <h2 className="font-['Bebas_Neue'] text-2xl tracking-widest text-yellow-400">⚽ Group {g}</h2>
+                  </div>
+
+                  {/* Result pills — today only */}
+                  {pills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {pills.map(game => {
+                        const ht = teamByAbbr(game.home), at = teamByAbbr(game.away)
+                        if (!ht) return null
+                        if (game.status === 'live') {
+                          return (
+                            <span key={`${game.home}-${game.away}`} className="inline-flex items-center gap-1.5 bg-red-500/10 border border-red-500/35 rounded-md px-2 py-1 text-xs text-white">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                              {ht.flag} {ht.name}
+                              <span className="font-['Bebas_Neue'] text-sm">{game.hs}–{game.as}</span>
+                              {at?.name} {at?.flag}
+                            </span>
+                          )
+                        }
+                        if (game.hs === game.as) {
+                          return (
+                            <span key={`${game.home}-${game.away}`} className="inline-flex items-center gap-1.5 bg-white/5 border border-white/12 rounded-full px-2.5 py-0.5 text-xs text-[#b8b4aa]">
+                              {ht.flag} {ht.name} <span className="font-['Bebas_Neue'] text-sm text-white">{game.hs}–{game.as}</span> {at?.name} {at?.flag} <span className="text-[10px]">DRAW</span>
+                            </span>
+                          )
+                        }
+                        const winAbbr = game.hs > game.as ? game.home : game.away
+                        const wt = teamByAbbr(winAbbr)
+                        const lt = teamByAbbr(game.hs > game.as ? game.away : game.home)
+                        const ws = Math.max(game.hs, game.as), ls = Math.min(game.hs, game.as)
+                        return (
+                          <span key={`${game.home}-${game.away}`} title={`Beat ${lt?.name}`} className="inline-flex items-center gap-1.5 bg-yellow-400/8 border border-yellow-400/25 rounded-full px-2.5 py-0.5 text-xs text-yellow-400 font-semibold">
+                            {wt?.flag} {wt?.name} <span className="font-['Bebas_Neue'] text-sm opacity-70">{ws}–{ls}</span>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                    {groupTeams.map(team => (
+                      <TeamCard
+                        key={team.abbr}
+                        team={team}
+                        mode={mode}
+                        game={gameByTeam.get(team.abbr)}
+                        isWinner={winners.has(team.abbr)}
+                        isLive={liveSet.has(team.abbr)}
+                        hasDrank={drankSet.has(team.abbr)}
+                        onToggle={toggleDrank}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
+          </main>
+        </>
+      )}
 
       <footer className="text-center py-4 text-[10px] text-[#b8b4aa] border-t border-white/8">
         Scores refresh every 60s · Drink responsibly · World Cup June 11 – July 19 2026 🍺
