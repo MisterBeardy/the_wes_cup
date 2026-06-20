@@ -19,8 +19,10 @@ export interface Team {
 export type GameStatus = 'final' | 'live' | 'scheduled'
 
 export interface Game {
-  home: string
-  away: string
+  home?: string           // abbr — undefined for placeholder teams (TBD)
+  away?: string
+  homePlaceholder?: string  // e.g. "1A", "3B/C/D", "W74"
+  awayPlaceholder?: string
   hs: number
   as: number
   status: GameStatus
@@ -28,6 +30,10 @@ export interface Game {
   time: string
   min?: number
   prob?: Record<string, number>
+  round?: string          // e.g. "Matchday 10", "Round of 16", "Quarter-final"
+  group?: string          // e.g. "Group A"
+  stadium?: string        // e.g. "MetLife Stadium"
+  city?: string           // e.g. "East Rutherford, NJ"
 }
 
 export interface ScoresResponse {

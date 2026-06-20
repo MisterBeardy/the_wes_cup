@@ -67,14 +67,15 @@ export default function GamePage() {
 
   games.forEach(g => {
     if (g.status === 'final') {
-      if (g.hs > g.as) winners.add(g.home)
-      else if (g.as > g.hs) winners.add(g.away)
+      if (g.hs > g.as && g.home) winners.add(g.home)
+      else if (g.as > g.hs && g.away) winners.add(g.away)
     } else if (g.status === 'live') {
-      liveSet.add(g.home); liveSet.add(g.away)
+      if (g.home) liveSet.add(g.home)
+      if (g.away) liveSet.add(g.away)
     }
     if (g.status !== 'scheduled') {
-      gameByTeam.set(g.home, g)
-      gameByTeam.set(g.away, g)
+      if (g.home) gameByTeam.set(g.home, g)
+      if (g.away) gameByTeam.set(g.away, g)
     }
   })
 
@@ -82,7 +83,7 @@ export default function GamePage() {
   const todayGames = games.filter(g => g.date === TODAY && g.status !== 'scheduled')
   const pillsByGroup = new Map<string, Game[]>()
   todayGames.forEach(g => {
-    const ht = teamByAbbr(g.home)
+    const ht = g.home ? teamByAbbr(g.home) : undefined
     if (!ht) return
     const arr = pillsByGroup.get(ht.g) ?? []
     arr.push(g)
@@ -251,7 +252,8 @@ export default function GamePage() {
                   {pills.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
                       {pills.map(game => {
-                        const ht = teamByAbbr(game.home), at = teamByAbbr(game.away)
+                        const ht = game.home ? teamByAbbr(game.home) : undefined
+                        const at = game.away ? teamByAbbr(game.away) : undefined
                         if (!ht) return null
                         if (game.status === 'live') {
                           return (
@@ -271,8 +273,8 @@ export default function GamePage() {
                           )
                         }
                         const winAbbr = game.hs > game.as ? game.home : game.away
-                        const wt = teamByAbbr(winAbbr)
-                        const lt = teamByAbbr(game.hs > game.as ? game.away : game.home)
+                        const wt = winAbbr ? teamByAbbr(winAbbr) : undefined
+                        const lt = game.hs > game.as ? (game.away ? teamByAbbr(game.away) : undefined) : (game.home ? teamByAbbr(game.home) : undefined)
                         const ws = Math.max(game.hs, game.as), ls = Math.min(game.hs, game.as)
                         return (
                           <span key={`${game.home}-${game.away}`} title={`Beat ${lt?.name}`} className="inline-flex items-center gap-1.5 bg-yellow-400/8 border border-yellow-400/25 rounded-full px-2.5 py-0.5 text-xs text-yellow-400 font-semibold">
