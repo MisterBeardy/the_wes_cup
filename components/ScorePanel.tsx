@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Game, Mode } from '@/lib/types'
-import { teamByAbbr } from '@/lib/teams'
+import { teamByAbbr, MODE_META } from '@/lib/teams'
 import DrinkLink from './DrinkLink'
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
 function GameCard({ g, mode }: { g: Game; mode: Mode }) {
   const ht = g.home ? teamByAbbr(g.home) : undefined
   const at = g.away ? teamByAbbr(g.away) : undefined
-  const drinkCls = mode === 'auth' ? 'text-emerald-400' : 'text-sky-300'
+  const drinkCls = MODE_META[mode].text
 
   const homeLabel  = ht   ? `${ht.flag} ${ht.name}`   : (g.homePlaceholder ?? 'TBD')
   const awayLabel  = at   ? `${at.flag} ${at.name}`   : (g.awayPlaceholder ?? 'TBD')
@@ -68,7 +68,7 @@ function GameCard({ g, mode }: { g: Game; mode: Mode }) {
             </div>
             {homeDrink && (
               <div className={`text-[11px] font-semibold mt-0.5 ${drinkCls}`}>
-                🥃 <DrinkLink drink={homeDrink} />
+                {MODE_META[mode].icon} <DrinkLink drink={homeDrink} />
               </div>
             )}
             {!homeDrink && isTBD && (
@@ -92,7 +92,7 @@ function GameCard({ g, mode }: { g: Game; mode: Mode }) {
             </div>
             {awayDrink && (
               <div className={`text-[11px] font-semibold mt-0.5 ${drinkCls}`}>
-                🥃 <DrinkLink drink={awayDrink} />
+                {MODE_META[mode].icon} <DrinkLink drink={awayDrink} />
               </div>
             )}
             {!awayDrink && isTBD && (
@@ -191,7 +191,7 @@ export default function ScorePanel({ games, mode, drankSet, today, fetchedAt }: 
                 {liveGames.map(g => {
                   const ht = g.home ? teamByAbbr(g.home) : undefined
                   const at = g.away ? teamByAbbr(g.away) : undefined
-                  const drinkCls = mode === 'auth' ? 'text-emerald-400' : 'text-sky-300'
+                  const drinkCls = MODE_META[mode].text
                   return (
                     <div key={`live-${g.home}-${g.away}`} className="bg-red-500/12 border border-red-500/45 rounded-xl overflow-hidden w-full max-w-sm">
                       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-red-500/20">
@@ -203,12 +203,12 @@ export default function ScorePanel({ games, mode, drankSet, today, fetchedAt }: 
                       <div className="px-3 py-2 flex items-center gap-3">
                         <div className="flex-1">
                           <div className="font-bold text-white text-sm">{ht?.flag} {ht?.name}</div>
-                          {ht && <div className={`text-[11px] font-semibold ${drinkCls}`}>🥃 <DrinkLink drink={ht[mode]} /></div>}
+                          {ht && <div className={`text-[11px] font-semibold ${drinkCls}`}>{MODE_META[mode].icon} <DrinkLink drink={ht[mode]} /></div>}
                         </div>
                         <span className="font-['Bebas_Neue'] text-2xl text-white">{g.hs}–{g.as}</span>
                         <div className="flex-1 text-right">
                           <div className="font-bold text-white text-sm">{at?.name} {at?.flag}</div>
-                          {at && <div className={`text-[11px] font-semibold ${drinkCls}`}><DrinkLink drink={at[mode]} /> 🥃</div>}
+                          {at && <div className={`text-[11px] font-semibold ${drinkCls}`}><DrinkLink drink={at[mode]} /> {MODE_META[mode].icon}</div>}
                         </div>
                       </div>
                     </div>
@@ -221,7 +221,7 @@ export default function ScorePanel({ games, mode, drankSet, today, fetchedAt }: 
           {/* Winners */}
           {todayWinners.length > 0 && (
             <div>
-              <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-2 text-center">🥃 Winners — Drink Up</div>
+              <div className="text-[10px] uppercase tracking-widest text-white/40 font-bold mb-2 text-center">{MODE_META[mode].icon} Winners — Drink Up</div>
               <div className="flex flex-wrap gap-2 justify-center">
                 {todayWinners.map(({ team, opp, ws, ls, winAbbr }) => (
                   <div
@@ -231,8 +231,8 @@ export default function ScorePanel({ games, mode, drankSet, today, fetchedAt }: 
                     <span className="text-2xl">{team!.flag}</span>
                     <div>
                       <div className="font-['Bebas_Neue'] text-base text-white leading-none">{team!.name}</div>
-                      <div className={`text-xs font-bold mt-0.5 ${mode === 'auth' ? 'text-emerald-400' : 'text-sky-300'}`}>
-                        🥃 <DrinkLink drink={team![mode]} />
+                      <div className={`text-xs font-bold mt-0.5 ${MODE_META[mode].text}`}>
+                        {MODE_META[mode].icon} <DrinkLink drink={team![mode]} />
                       </div>
                       <div className="text-[10px] font-['Bebas_Neue'] text-white/40 mt-0.5">
                         {ws}–{ls} vs {opp?.flag} {opp?.name}
