@@ -64,6 +64,35 @@ export default function GamePage() {
     return () => clearInterval(timer)
   }, [fetchScores])
 
+  // Refresh as soon as the app returns to the foreground. Installed/standalone
+  // web apps (home-screen icon) pause timers while backgrounded, so without this
+  // a reopened app can show stale scores. Also re-resolves "today" to catch a
+  // day rollover on a device left open overnight.
+  useEffect(() => {
+    const onForeground = () => {
+      if (document.visibilityState !== 'visible') return
+      setToday(localToday())
+      fetchScores()
+    }
+    window.addEventListener('focus', onForeground)
+    document.addEventListener('visibilitychange', onForeground)
+    return () => {
+      window.removeEventListener('focus', onForeground)
+      document.removeEventListener('visibilitychange', onForeground)
+    }
+  }, [fetchScores])
+
+  // Full reload every 15 minutes for always-on displays (a kiosk, an iPad left
+  // open) so they pick up new deploys and stay healthy over long sessions. Only
+  // reloads while visible; "drank" state lives in localStorage, so it survives.
+  useEffect(() => {
+    const RELOAD_MS = 15 * 60 * 1000
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') window.location.reload()
+    }, RELOAD_MS)
+    return () => clearInterval(timer)
+  }, [])
+
   const toggleDrank = (abbr: string) => {
     setDrankSet(prev => {
       const next = new Set(prev)
