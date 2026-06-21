@@ -2,6 +2,10 @@
 
 body {
   font-family: 'Inter', sans-serif;
+  background: #1a3a1a;
+  /* Avoid the browser's own overscroll bounce so the custom pull-to-refresh
+     reads cleanly in standalone/installed mode. */
+  overscroll-behavior-y: contain;
 }
 
 * {
