@@ -147,14 +147,20 @@ export const TEAMS: Team[] = [
     usa:{ drink:'Overproof White Rum', desc:'Rum Fire or Smith & Cross — funky, raw, high-proof sugarcane spirit', wiki:'https://en.wikipedia.org/wiki/Overproof_rum' } },
 ]
 
-export const TODAY = '2026-06-20'
+// YYYY-MM-DD for a Date, expressed in the browser's local timezone.
+// (Date#getFullYear/getMonth/getDate read local-time fields, unlike toISOString which is UTC.)
+export function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
-export const DAY_LABELS: Record<string, string> = {
-  '2026-06-19': 'Thu · Jun 19',
-  '2026-06-20': 'Today · Jun 20',
-  '2026-06-21': 'Sat · Jun 21',
-  '2026-06-22': 'Sun · Jun 22',
-  '2026-06-23': 'Mon · Jun 23',
+// Today's date as YYYY-MM-DD in the browser's local timezone.
+// Call this on the client (e.g. inside an effect) so it reflects the viewer's
+// timezone rather than the server's at build/SSR time.
+export function localToday(): string {
+  return toLocalDateStr(new Date())
 }
 
 export const teamByAbbr = (abbr: string) => TEAMS.find(t => t.abbr === abbr)

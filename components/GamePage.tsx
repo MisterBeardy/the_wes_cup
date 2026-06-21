@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Mode, Game } from '@/lib/types'
-import { TEAMS, TODAY, teamByAbbr } from '@/lib/teams'
+import { TEAMS, localToday, toLocalDateStr, teamByAbbr } from '@/lib/teams'
 import TeamCard from '@/components/TeamCard'
 import ScorePanel from '@/components/ScorePanel'
 import Bracket from '@/components/Bracket'
@@ -11,6 +11,19 @@ const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
 
 type View = 'groups' | 'bracket'
 
+// Convert each game's canonical UTC kickoff into the viewer's local date + time.
+// Runs in the browser, so date/time always match the timezone of whoever is viewing.
+function localizeGames(games: Game[]): Game[] {
+  return games.map(g => {
+    const d = new Date(g.kickoff)
+    return {
+      ...g,
+      date: toLocalDateStr(d),
+      time: d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
+    }
+  })
+}
+
 export default function GamePage() {
   const [mode, setMode] = useState<Mode>('auth')
   const [drankSet, setDrankSet] = useState<Set<string>>(new Set())
@@ -19,6 +32,13 @@ export default function GamePage() {
   const [group, setGroup] = useState('ALL')
   const [search, setSearch] = useState('')
   const [view, setView] = useState<View>('groups')
+  const [today, setToday] = useState('')
+
+  // Resolve "today" in the browser's local timezone after mount (avoids any
+  // server/client timezone mismatch during hydration).
+  useEffect(() => {
+    setToday(localToday())
+  }, [])
 
   // Load drank state from localStorage
   useEffect(() => {
@@ -33,7 +53,7 @@ export default function GamePage() {
     try {
       const res = await fetch('/api/scores')
       const data = await res.json()
-      setGames(data.games ?? [])
+      setGames(localizeGames(data.games ?? []))
       setFetchedAt(data.fetchedAt ?? new Date().toISOString())
     } catch {}
   }, [])
@@ -80,7 +100,7 @@ export default function GamePage() {
   })
 
   // Today's group pills
-  const todayGames = games.filter(g => g.date === TODAY && g.status !== 'scheduled')
+  const todayGames = games.filter(g => g.date === today && g.status !== 'scheduled')
   const pillsByGroup = new Map<string, Game[]>()
   todayGames.forEach(g => {
     const ht = g.home ? teamByAbbr(g.home) : undefined
@@ -91,7 +111,7 @@ export default function GamePage() {
   })
 
   // Stats
-  const todayWinCount = games.filter(g => g.date === TODAY && g.status === 'final' && g.hs !== g.as).length
+  const todayWinCount = games.filter(g => g.date === today && g.status === 'final' && g.hs !== g.as).length
 
   // Filtered teams
   const filteredTeams = TEAMS.filter(t => {
@@ -165,7 +185,7 @@ export default function GamePage() {
       </header>
 
       {/* Score panel */}
-      <ScorePanel games={games} mode={mode} drankSet={drankSet} fetchedAt={fetchedAt || new Date().toISOString()} />
+      <ScorePanel games={games} mode={mode} drankSet={drankSet} today={today} fetchedAt={fetchedAt || new Date().toISOString()} />
 
       {/* View toggle — Groups vs Bracket */}
       <div className="flex justify-center px-4 pt-4 pb-0">

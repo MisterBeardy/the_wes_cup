@@ -1,13 +1,14 @@
 'use client'
 import { useState } from 'react'
 import { Game, Mode } from '@/lib/types'
-import { TODAY, DAY_LABELS, teamByAbbr } from '@/lib/teams'
+import { teamByAbbr } from '@/lib/teams'
 import DrinkLink from './DrinkLink'
 
 interface Props {
   games: Game[]
   mode: Mode
   drankSet: Set<string>
+  today: string           // YYYY-MM-DD in the viewer's local timezone
   fetchedAt: string
 }
 
@@ -38,7 +39,7 @@ function GameCard({ g, mode }: { g: Game; mode: Mode }) {
       <div className="flex items-start justify-between gap-2 px-3 pt-2.5 pb-2 border-b border-white/8">
         <div>
           <div className="flex items-center gap-1.5">
-            <span className="text-purple-300 font-bold text-sm tracking-wide leading-none">{g.time} EST</span>
+            <span className="text-purple-300 font-bold text-sm tracking-wide leading-none">{g.time}</span>
             {roundShort && (
               <span className="text-white/30 text-[10px] font-bold uppercase tracking-wider leading-none">· {roundShort}</span>
             )}
@@ -104,10 +105,10 @@ function GameCard({ g, mode }: { g: Game; mode: Mode }) {
   )
 }
 
-export default function ScorePanel({ games, mode, drankSet, fetchedAt }: Props) {
+export default function ScorePanel({ games, mode, drankSet, today, fetchedAt }: Props) {
   const [tab, setTab] = useState<'today' | 'upcoming'>('today')
 
-  const todayGames     = games.filter(g => g.date === TODAY)
+  const todayGames     = games.filter(g => g.date === today)
   const liveGames      = todayGames.filter(g => g.status === 'live')
   const todayWinners   = todayGames
     .filter(g => g.status === 'final' && g.hs !== g.as)
@@ -126,11 +127,8 @@ export default function ScorePanel({ games, mode, drankSet, fetchedAt }: Props) 
   const todayScheduled = todayGames.filter(g => g.status === 'scheduled')
 
   const upcomingGames = games
-    .filter(g => g.status === 'scheduled' && g.date !== TODAY)
-    .sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date)
-      return a.time.localeCompare(b.time)
-    })
+    .filter(g => g.status === 'scheduled' && g.date !== today)
+    .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
 
   // Group upcoming by date
   const byDay: Record<string, Game[]> = {}
@@ -142,12 +140,20 @@ export default function ScorePanel({ games, mode, drankSet, fetchedAt }: Props) 
   const fmtTime   = new Date(fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   const hasContent = todayGames.length > 0
 
-  // Format date for day label
+  // Short "Mon · Jun 22" style label for a YYYY-MM-DD date. Parsed at local noon
+  // so the weekday/day are correct in the viewer's timezone.
   function dayLabel(date: string) {
-    if (DAY_LABELS[date]) return DAY_LABELS[date]
-    const d = new Date(date + 'T12:00:00Z')
+    const d = new Date(date + 'T12:00:00')
+    if (date === today) {
+      return `Today · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    }
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   }
+
+  // "06/21" style label for the Today tab, in the viewer's local timezone.
+  const todayShort = today
+    ? new Date(today + 'T12:00:00').toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })
+    : ''
 
   return (
     <div className="bg-[#0d1f0d] border-b border-white/10">
@@ -162,7 +168,7 @@ export default function ScorePanel({ games, mode, drankSet, fetchedAt }: Props) 
               tab === t ? 'text-white' : 'text-white/35 hover:text-white/60',
             ].join(' ')}
           >
-            {t === 'today' ? `📅 Today · ${TODAY.slice(5).replace('-', '/')}` : '🔮 Upcoming Games'}
+            {t === 'today' ? `📅 Today${todayShort ? ` · ${todayShort}` : ''}` : '🔮 Upcoming Games'}
             {tab === t && (
               <span className={`absolute bottom-0 left-0 right-0 h-0.5 ${t === 'today' ? 'bg-yellow-400' : 'bg-purple-400'}`} />
             )}

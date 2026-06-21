@@ -26,8 +26,9 @@ export interface Game {
   hs: number
   as: number
   status: GameStatus
-  date: string
-  time: string
+  kickoff: string         // canonical kickoff instant, UTC ISO 8601 (e.g. "2026-06-19T23:00:00.000Z")
+  date: string            // YYYY-MM-DD in the viewer's local timezone (derived client-side from kickoff)
+  time: string            // formatted kickoff time in the viewer's local timezone (derived client-side)
   min?: number
   prob?: Record<string, number>
   round?: string          // e.g. "Matchday 10", "Round of 16", "Quarter-final"
