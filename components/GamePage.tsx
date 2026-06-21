@@ -5,6 +5,7 @@ import { TEAMS, MODES, MODE_META, localToday, toLocalDateStr, teamByAbbr } from 
 import TeamCard from '@/components/TeamCard'
 import ScorePanel from '@/components/ScorePanel'
 import Bracket from '@/components/Bracket'
+import PullToRefresh from '@/components/PullToRefresh'
 
 const DRANK_KEY = 'wc2026_drank_v3'
 const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
@@ -57,6 +58,12 @@ export default function GamePage() {
       setFetchedAt(data.fetchedAt ?? new Date().toISOString())
     } catch {}
   }, [])
+
+  // Manual refresh (pull-to-refresh): re-resolve today + refetch scores.
+  const handleRefresh = useCallback(() => {
+    setToday(localToday())
+    return fetchScores()
+  }, [fetchScores])
 
   useEffect(() => {
     fetchScores()
@@ -157,6 +164,7 @@ export default function GamePage() {
     : [group]
 
   return (
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="min-h-screen text-[#f0ede6]" style={{
       background: '#1a3a1a',
       backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 60px,rgba(255,255,255,.015) 60px,rgba(255,255,255,.015) 61px),repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(255,255,255,.015) 60px,rgba(255,255,255,.015) 61px)'
@@ -356,5 +364,6 @@ export default function GamePage() {
         Scores refresh every 60s · Drink responsibly · World Cup June 11 – July 19 2026 🍺
       </footer>
     </div>
+    </PullToRefresh>
   )
 }

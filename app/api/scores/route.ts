@@ -96,20 +96,38 @@ interface FdMatch {
   score?: { fullTime?: { home?: number | null; away?: number | null } }
 }
 
-// football-data.org names a few national teams differently from openfootball.
+// football-data.org names some national teams differently from openfootball.
+// Keys are normalized (curly→straight apostrophes) before lookup.
 const FD_NAME_MAP: Record<string, string> = {
-  'Korea Republic': 'KOR', 'IR Iran': 'IRN', 'Cabo Verde': 'CPV',
-  'Bosnia-Herzegovina': 'BIH',
+  'Korea Republic': 'KOR', 'South Korea': 'KOR',
+  'IR Iran': 'IRN', 'Iran': 'IRN',
+  'Cabo Verde': 'CPV', 'Cape Verde': 'CPV',
+  'Bosnia-Herzegovina': 'BIH', 'Bosnia and Herzegovina': 'BIH',
+  'DR Congo': 'COD', 'Congo DR': 'COD',
+  "Cote d'Ivoire": 'CIV', "Côte d'Ivoire": 'CIV', 'Ivory Coast': 'CIV',
+  'Türkiye': 'TUR', 'Turkiye': 'TUR', 'Turkey': 'TUR',
+  'Curaçao': 'CUW', 'Curacao': 'CUW',
+  'United States': 'USA',
+  'Czech Republic': 'CZE', 'Czechia': 'CZE',
 }
 
-// Resolve a football-data team to our internal abbr: prefer its 3-letter code
-// when it's one of ours, then fall back to name maps, then a 3-char guess.
+// football-data 3-letter codes that differ from our internal abbr.
+const FD_TLA_MAP: Record<string, string> = {
+  HAI: 'HTI',   // Haiti — FIFA/football-data use HAI, we use HTI
+}
+
+// Resolve a football-data team to our internal abbr. Names are the most reliable
+// signal (we map them straight to our abbr); the 3-letter code is a fallback,
+// with explicit overrides for codes that differ from ours.
 function fdAbbr(team: FdTeam | undefined, abbrs: Set<string>): string | undefined {
   if (!team) return undefined
+  const name = (team.name ?? '').replace(/’/g, "'").trim()  // normalize curly apostrophe
+  const byName = FD_NAME_MAP[name] ?? NAME_MAP[name]
+  if (byName) return byName
   const tla = team.tla?.toUpperCase()
+  if (tla && FD_TLA_MAP[tla]) return FD_TLA_MAP[tla]
   if (tla && abbrs.has(tla)) return tla
-  const name = team.name ?? ''
-  return FD_NAME_MAP[name] ?? NAME_MAP[name] ?? (name ? name.slice(0, 3).toUpperCase() : undefined)
+  return name ? name.slice(0, 3).toUpperCase() : undefined
 }
 
 // Unordered key for a fixture, so it matches regardless of home/away orientation.
