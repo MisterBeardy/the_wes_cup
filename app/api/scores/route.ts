@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import { Game, ScoresResponse } from '@/lib/types'
+import { TEAMS } from '@/lib/teams'
 
 const SOURCE_URL =
   'https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json'
+
+// Optional live-score overlay (football-data.org). Dormant until the key is set.
+const FD_URL = 'https://api.football-data.org/v4/competitions/WC/matches'
 
 const NAME_MAP: Record<string, string> = {
   'Mexico': 'MEX', 'South Africa': 'RSA', 'South Korea': 'KOR',
@@ -81,6 +85,95 @@ interface RawMatch {
   ground?: string
 }
 
+// ----- Live overlay (football-data.org) -------------------------------------
+
+interface FdTeam { name?: string; tla?: string }
+interface FdMatch {
+  status?: string
+  minute?: number | string | null
+  homeTeam?: FdTeam
+  awayTeam?: FdTeam
+  score?: { fullTime?: { home?: number | null; away?: number | null } }
+}
+
+// football-data.org names a few national teams differently from openfootball.
+const FD_NAME_MAP: Record<string, string> = {
+  'Korea Republic': 'KOR', 'IR Iran': 'IRN', 'Cabo Verde': 'CPV',
+  'Bosnia-Herzegovina': 'BIH',
+}
+
+// Resolve a football-data team to our internal abbr: prefer its 3-letter code
+// when it's one of ours, then fall back to name maps, then a 3-char guess.
+function fdAbbr(team: FdTeam | undefined, abbrs: Set<string>): string | undefined {
+  if (!team) return undefined
+  const tla = team.tla?.toUpperCase()
+  if (tla && abbrs.has(tla)) return tla
+  const name = team.name ?? ''
+  return FD_NAME_MAP[name] ?? NAME_MAP[name] ?? (name ? name.slice(0, 3).toUpperCase() : undefined)
+}
+
+// Unordered key for a fixture, so it matches regardless of home/away orientation.
+function pairKey(a?: string, b?: string): string | undefined {
+  return a && b ? [a, b].sort().join('|') : undefined
+}
+
+function parseMinute(min: number | string | null | undefined): number | undefined {
+  if (min == null) return undefined
+  const n = parseInt(String(min), 10)   // handles "45+2" → 45
+  return Number.isFinite(n) ? n : undefined
+}
+
+// Overlay live/in-play scores (and any fresher finals) from football-data.org onto
+// the openfootball base. No-op unless FOOTBALL_DATA_API_KEY is set; any failure is
+// swallowed so the base schedule/scores always render.
+async function applyLiveOverlay(games: Game[], abbrs: Set<string>): Promise<void> {
+  const key = process.env.FOOTBALL_DATA_API_KEY
+  if (!key) return
+  try {
+    const res = await fetch(FD_URL, {
+      headers: { 'X-Auth-Token': key },
+      next: { revalidate: 30 },
+    })
+    if (!res.ok) throw new Error(`football-data ${res.status}`)
+    const data = await res.json()
+    const matches: FdMatch[] = data.matches ?? []
+
+    const byPair = new Map<string, FdMatch>()
+    for (const m of matches) {
+      const k = pairKey(fdAbbr(m.homeTeam, abbrs), fdAbbr(m.awayTeam, abbrs))
+      if (k) byPair.set(k, m)
+    }
+
+    for (const g of games) {
+      const k = pairKey(g.home, g.away)
+      if (!k) continue
+      const m = byPair.get(k)
+      if (!m) continue
+
+      const fh = m.score?.fullTime?.home ?? 0
+      const fa = m.score?.fullTime?.away ?? 0
+      // Align the score to our home/away (football-data may list them swapped).
+      const sameOrientation = fdAbbr(m.homeTeam, abbrs) === g.home
+      const hs = sameOrientation ? fh : fa
+      const as = sameOrientation ? fa : fh
+
+      if (m.status === 'IN_PLAY' || m.status === 'PAUSED') {
+        g.status = 'live'
+        g.hs = hs
+        g.as = as
+        const min = parseMinute(m.minute)
+        if (min !== undefined) g.min = min
+      } else if (m.status === 'FINISHED' && g.status !== 'final') {
+        g.status = 'final'
+        g.hs = hs
+        g.as = as
+      }
+    }
+  } catch (err) {
+    console.error('Live overlay failed:', err)
+  }
+}
+
 export async function GET() {
   try {
     const res = await fetch(SOURCE_URL, { next: { revalidate: 60 } })
@@ -112,6 +205,9 @@ export async function GET() {
         city:          venue?.city,
       }
     })
+
+    // Overlay live in-play scores from football-data.org (no-op without an API key).
+    await applyLiveOverlay(games, new Set(TEAMS.map(t => t.abbr)))
 
     // Sort chronologically by the canonical kickoff instant (UTC ISO sorts lexically).
     games.sort((a, b) => a.kickoff.localeCompare(b.kickoff))
