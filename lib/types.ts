@@ -1,4 +1,4 @@
-export type Mode = 'auth' | 'usa'
+export type Mode = 'auth' | 'usa' | 'beer'
 
 export interface Drink {
   drink: string
@@ -14,6 +14,7 @@ export interface Team {
   conf: string
   auth: Drink
   usa: Drink
+  beer: Drink
 }
 
 export type GameStatus = 'final' | 'live' | 'scheduled'

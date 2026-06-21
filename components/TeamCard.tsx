@@ -1,5 +1,6 @@
 'use client'
 import { Team, Mode, Game } from '@/lib/types'
+import { MODE_META } from '@/lib/teams'
 import DrinkLink from './DrinkLink'
 
 interface Props {
@@ -94,8 +95,8 @@ export default function TeamCard({ team, mode, game, isWinner, isLive, hasDrank,
         {mode === 'usa' && (
           <div className="text-[9px] uppercase tracking-widest font-bold opacity-60 mb-1">🇺🇸 Bar Sub</div>
         )}
-        <div className={`text-[13px] font-semibold mb-0.5 ${mode === 'auth' ? 'text-emerald-400' : 'text-sky-300'}`}>
-          {mode === 'auth' ? '🥃' : '🍺'} <DrinkLink drink={drink} />
+        <div className={`text-[13px] font-semibold mb-0.5 ${MODE_META[mode].text}`}>
+          {MODE_META[mode].icon} <DrinkLink drink={drink} />
         </div>
         <div className="text-[11px] text-[#b8b4aa] leading-snug">{drink.desc}</div>
       </div>

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Mode, Game } from '@/lib/types'
-import { TEAMS, localToday, toLocalDateStr, teamByAbbr } from '@/lib/teams'
+import { TEAMS, MODES, MODE_META, localToday, toLocalDateStr, teamByAbbr } from '@/lib/teams'
 import TeamCard from '@/components/TeamCard'
 import ScorePanel from '@/components/ScorePanel'
 import Bracket from '@/components/Bracket'
@@ -168,18 +168,15 @@ export default function GamePage() {
         {/* Mode toggle */}
         <div className="flex justify-center mt-3">
           <div className="flex bg-black/35 border border-[#2d5a2d] rounded-full overflow-hidden">
-            <button
-              onClick={() => setMode('auth')}
-              className={`px-5 py-2 text-xs font-bold uppercase tracking-widest transition-all ${mode === 'auth' ? 'bg-yellow-400 text-black rounded-full' : 'text-[#b8b4aa] hover:text-white'}`}
-            >
-              🌍 Authentic
-            </button>
-            <button
-              onClick={() => setMode('usa')}
-              className={`px-5 py-2 text-xs font-bold uppercase tracking-widest transition-all ${mode === 'usa' ? 'bg-blue-600 text-white rounded-full' : 'text-[#b8b4aa] hover:text-white'}`}
-            >
-              🇺🇸 American Bar
-            </button>
+            {MODES.map(m => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-5 py-2 text-xs font-bold uppercase tracking-widest transition-all ${mode === m ? `${MODE_META[m].active} rounded-full` : 'text-[#b8b4aa] hover:text-white'}`}
+              >
+                {MODE_META[m].label}
+              </button>
+            ))}
           </div>
         </div>
       </header>

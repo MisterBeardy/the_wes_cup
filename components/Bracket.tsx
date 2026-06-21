@@ -1,6 +1,6 @@
 'use client'
 import { Mode, Game } from '@/lib/types'
-import { TEAMS } from '@/lib/teams'
+import { TEAMS, MODE_META } from '@/lib/teams'
 import { R16_DEFINITIONS, QF_DEFINITIONS, SF_DEFINITIONS } from '@/lib/bracket'
 import DrinkLink from './DrinkLink'
 
@@ -91,7 +91,7 @@ function MatchCard({
                 {team.name}
               </div>
               {drink && (
-                <div className={`text-[9px] leading-tight mt-0.5 truncate ${mode === 'auth' ? 'text-emerald-400/80' : 'text-sky-300/80'}`}>
+                <div className={`text-[9px] leading-tight mt-0.5 truncate ${MODE_META[mode].textSoft}`}>
                   <DrinkLink drink={drink} />
                 </div>
               )}
