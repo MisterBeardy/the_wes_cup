@@ -59,20 +59,15 @@ function toAbbr(name: string): string | undefined {
   return NAME_MAP[name] ?? name.substring(0, 3).toUpperCase()
 }
 
-// Parse "2026-06-19" + "19:00 UTC-4" → EDT date + 12h time string
-function parseDateTime(date: string, time: string): { edtDate: string; edtTime: string } {
+// Parse "2026-06-19" + "19:00 UTC-4" → canonical kickoff instant as a UTC ISO string.
+// The viewer's local date/time are derived from this on the client, so the same
+// instant renders correctly in whatever timezone the browser is in.
+function parseKickoff(date: string, time: string): string {
   const offsetMatch = time.match(/UTC([+-]\d+)/)
   const offsetHours = offsetMatch ? parseInt(offsetMatch[1]) : -4
   const [h, m] = time.split(' ')[0].split(':').map(Number)
   const utcMs = Date.parse(`${date}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00Z`) - offsetHours * 3600000
-  const edt = new Date(utcMs - 4 * 3600000)
-  const edtDate = edt.toISOString().split('T')[0]
-  const edtH = edt.getUTCHours()
-  const edtM = edt.getUTCMinutes()
-  const ampm = edtH >= 12 ? 'PM' : 'AM'
-  const h12 = edtH % 12 || 12
-  const edtTime = `${h12}:${String(edtM).padStart(2,'0')} ${ampm}`
-  return { edtDate, edtTime }
+  return new Date(utcMs).toISOString()
 }
 
 interface RawMatch {
@@ -95,7 +90,7 @@ export async function GET() {
 
     const games: Game[] = rawMatches.map((m) => {
       const hasFT = Array.isArray(m.score?.ft)
-      const { edtDate, edtTime } = parseDateTime(m.date, m.time ?? '20:00 UTC-4')
+      const kickoff = parseKickoff(m.date, m.time ?? '20:00 UTC-4')
       const venue = m.ground ? cleanVenue(m.ground) : undefined
 
       return {
@@ -106,8 +101,11 @@ export async function GET() {
         hs:            hasFT ? (m.score!.ft![0] ?? 0) : 0,
         as:            hasFT ? (m.score!.ft![1] ?? 0) : 0,
         status:        hasFT ? 'final' : 'scheduled',
-        date:          edtDate,
-        time:          edtTime,
+        kickoff,
+        // date/time are placeholders; the client overwrites them with values
+        // localized to the viewer's timezone (see GamePage.localizeGames).
+        date:          kickoff.slice(0, 10),
+        time:          '',
         round:         m.round,
         group:         m.group ?? undefined,
         stadium:       venue?.stadium,
@@ -115,24 +113,8 @@ export async function GET() {
       }
     })
 
-    // Sort by start time (date + time already converted to EDT)
-    games.sort((a, b) => {
-      const da = new Date(`${a.date}T00:00:00`).getTime()
-      const db = new Date(`${b.date}T00:00:00`).getTime()
-      if (da !== db) return da - db
-      // parse time for same-day sort
-      const ta = a.time ?? ''
-      const tb = b.time ?? ''
-      const toMins = (t: string) => {
-        const m = t.match(/(\d+):(\d+)\s*(AM|PM)/)
-        if (!m) return 0
-        let h = parseInt(m[1])
-        if (m[3] === 'PM' && h !== 12) h += 12
-        if (m[3] === 'AM' && h === 12) h = 0
-        return h * 60 + parseInt(m[2])
-      }
-      return toMins(ta) - toMins(tb)
-    })
+    // Sort chronologically by the canonical kickoff instant (UTC ISO sorts lexically).
+    games.sort((a, b) => a.kickoff.localeCompare(b.kickoff))
 
     const response: ScoresResponse = { games, fetchedAt: new Date().toISOString() }
     return NextResponse.json(response, {
